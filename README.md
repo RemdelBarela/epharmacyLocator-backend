@@ -1,1 +1,0 @@
-# epharmacyLocator-backend
