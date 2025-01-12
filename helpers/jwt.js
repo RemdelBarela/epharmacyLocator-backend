@@ -14,6 +14,10 @@ function authJwt() {
                     methods: ['GET', 'POST', 'PUT', 'PATCH', 'OPTIONS', 'DELETE']
                 },
                 {
+                    url: /\/api\/v1\/customers(.*)/,
+                    methods: ['GET', 'POST', 'PUT', 'PATCH', 'OPTIONS', 'DELETE']
+                },
+                {
                     url: /\/api\/v1\/pharmacies(.*)/,
                     methods: ['GET', 'POST', 'PUT', 'OPTIONS', 'DELETE']
                 },
