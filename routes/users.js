@@ -780,14 +780,30 @@ router.put('/:id', uploadOptions.array('images'), async (req, res) => {
     const { name, contactNumber, street, barangay, city, businessDays, openingHour, closingHour } = req.body;
 
     try {
-        // Find the customer by ID
+        // Check if the user is an Admin
+        const admin = await User.findById(id); // Assuming User is the main model for all users
+
+        if (admin && admin.role === 'Admin') {
+            // Update Admin fields
+            admin.name = name || admin.name;
+            admin.contactNumber = contactNumber || admin.contactNumber;
+            admin.street = street || admin.street;
+            admin.barangay = barangay || admin.barangay;
+            admin.city = city || admin.city;
+
+            await admin.save();
+            return res.status(200).json({ message: 'Admin profile updated successfully', admin });
+        }
+
+        // If not admin, check if the user is a Customer
         const customer = await Customer.findOne({ userInfo: id }).populate('userInfo');
         const pharmacy = await Pharmacy.findOne({ userInfo: id }).populate('userInfo');
+
         if (!customer) {
             // If customer is not found, check if it's a pharmacy update
             if (!pharmacy) return res.status(404).send('Entity not found');
 
-            // Update fields in the related User document (userInfo)
+            // Update fields in the related User document (userInfo) for Pharmacy
             if (pharmacy.userInfo) {
                 const user = pharmacy.userInfo;
 
@@ -800,7 +816,7 @@ router.put('/:id', uploadOptions.array('images'), async (req, res) => {
                 await user.save();
             }
 
-            // Replace old images with new ones
+            // Replace old images with new ones for Pharmacy
             const imageUrls = req.files.map((file) => file.path);
             pharmacy.images = imageUrls;
 
@@ -808,7 +824,7 @@ router.put('/:id', uploadOptions.array('images'), async (req, res) => {
             return res.status(200).json({ message: 'Pharmacy updated successfully', pharmacy });
         }
 
-        // If customer exists, update fields in the related User document
+        // Update fields in the related User document (userInfo) for Customer
         if (customer.userInfo) {
             const user = customer.userInfo;
 
@@ -821,7 +837,7 @@ router.put('/:id', uploadOptions.array('images'), async (req, res) => {
             await user.save();
         }
 
-        // Replace old images with new ones
+        // Replace old images with new ones for Customer
         const imageUrls = req.files.map((file) => file.path);
         customer.images = imageUrls;
 
@@ -829,7 +845,7 @@ router.put('/:id', uploadOptions.array('images'), async (req, res) => {
 
         res.status(200).json({ message: 'Customer profile updated successfully', customer });
     } catch (error) {
-        console.error(error);
+        console.error('Error updating entity:', error);
         res.status(500).send('Error updating entity');
     }
 });
