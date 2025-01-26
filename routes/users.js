@@ -58,78 +58,81 @@ router.get('/', async (req, res) => {
 
 // pharmacies per month na chart
 router.get('/pharmaciesPerMonth', async (req, res) => {
-  try {
-    const getUsersPerMonth = await User.aggregate([
-      {
-        $match: {
-          role: "PharmacyOwner", 
-        },
-      },
-      {
-        $group: {
-          _id: {
-            year: { $year: "$createdAt" },
-            month: { $month: "$createdAt" },
+    try {
+        const getUsersPerMonth = await User.aggregate([
+          {
+            $match: {
+              role: "PharmacyOwner", 
+            },
           },
-          total: { $sum: 1 }, // Count the number of pharmacies
-        },
-      },
-      {
-        $addFields: {
-          month: {
-            $let: {
-              vars: {
-                monthsInString: [
-                  null,
-                  "Jan",
-                  "Feb",
-                  "Mar",
-                  "Apr",
-                  "May",
-                  "Jun",
-                  "Jul",
-                  "Aug",
-                  "Sept",
-                  "Oct",
-                  "Nov",
-                  "Dec",
-                ],
+          {
+            $group: {
+              _id: {
+                year: { $year: "$createdAt" },
+                month: { $month: "$createdAt" },
               },
-              in: {
-                $arrayElemAt: ["$$monthsInString", "$_id.month"],
+              total: { $sum: 1 }, // Count the number of pharmacies
+            },
+          },
+          {
+            $addFields: {
+              month: {
+                $let: {
+                  vars: {
+                    monthsInString: [
+                      null,
+                      "Jan",
+                      "Feb",
+                      "Mar",
+                      "Apr",
+                      "May",
+                      "Jun",
+                      "Jul",
+                      "Aug",
+                      "Sept",
+                      "Oct",
+                      "Nov",
+                      "Dec",
+                    ],
+                  },
+                  in: {
+                    $arrayElemAt: ["$$monthsInString", "$_id.month"],
+                  },
+                },
               },
             },
           },
-        },
-      },
-      { $sort: { "_id.month": 1 } },
-      {
-        $project: {
-          _id: 0,
-          month: 1,
-          total: 1,
-        },
-      },
-    ]);
-
-    console.log(getUsersPerMonth);
-
-    if (!getUsersPerMonth || getUsersPerMonth.length === 0) {
-      return res.status(404).json({
-        message: "No pharmacy registrations found for the requested period.",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      getUsersPerMonth,
-    });
-  } catch (error) {
-    console.error("Error fetching pharmacy registrations per month:", error);
-    res.status(500).json({
-      message: "An error occurred while fetching data.",
-    });
-  }
+          { 
+            $sort: { "_id.year": 1, "_id.month": 1 } // Sort by year first, then by month 
+          },
+          {
+            $project: {
+              _id: 0,
+              year: "$_id.year",
+              month: 1,
+              total: 1,
+            },
+          },
+        ]);
+    
+        console.log(getUsersPerMonth);
+    
+        if (!getUsersPerMonth || getUsersPerMonth.length === 0) {
+          return res.status(404).json({
+            message: "No pharmacy registrations found for the requested period.",
+          });
+        }
+    
+        res.status(200).json({
+          success: true,
+          getUsersPerMonth,
+        });
+      } catch (error) {
+        console.error("Error fetching pharmacy registrations per month:", error);
+        res.status(500).json({
+          message: "An error occurred while fetching data.",
+        });
+      }
 });
 
 // customers per month na chart
