@@ -5,13 +5,14 @@ const medicineSchema = mongoose.Schema({
         type: String,
         required: true,
     },
-    description: {
-        type: String,
-        required: true,
-    },
     stock: {
         type: Number, 
         required: true,
+    },
+    timeStamps:
+    {
+        type: String,
+        required: true
     },
     pharmacy: {
         type: mongoose.Schema.Types.ObjectId,

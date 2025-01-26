@@ -138,7 +138,7 @@ router.get('/customersPerMonth', async (req, res) => {
       const getUsersPerMonth = await User.aggregate([
         {
           $match: {
-            role: "Customer", 
+            role: "Customer",
           },
         },
         {
@@ -147,7 +147,7 @@ router.get('/customersPerMonth', async (req, res) => {
               year: { $year: "$createdAt" },
               month: { $month: "$createdAt" },
             },
-            total: { $sum: 1 }, // Count the number of pharmacies
+            total: { $sum: 1 },
           },
         },
         {
@@ -178,21 +178,25 @@ router.get('/customersPerMonth', async (req, res) => {
             },
           },
         },
-        { $sort: { "_id.month": 1 } },
+        {
+          $sort: {
+            "_id.year": 1,  // Sort by year first
+            "_id.month": 1, // Then sort by month
+          },
+        },
         {
           $project: {
             _id: 0,
+            year: "$_id.year", // Include year in the response
             month: 1,
             total: 1,
           },
         },
       ]);
   
-      console.log(getUsersPerMonth);
-  
       if (!getUsersPerMonth || getUsersPerMonth.length === 0) {
         return res.status(404).json({
-          message: "No pharmacy registrations found for the requested period.",
+          message: "No customer registrations found for the requested period.",
         });
       }
   
@@ -201,12 +205,13 @@ router.get('/customersPerMonth', async (req, res) => {
         getUsersPerMonth,
       });
     } catch (error) {
-      console.error("Error fetching pharmacy registrations per month:", error);
+      console.error("Error fetching customer registrations per month:", error);
       res.status(500).json({
         message: "An error occurred while fetching data.",
       });
     }
   });
+  
 
 
   router.post(
@@ -269,14 +274,10 @@ router.get('/customersPerMonth', async (req, res) => {
                 
 
                 try {
-                    // Handle diseases if present
-                    console.log('disease:', req.body.disease);
-                    if (req.body.disease === 'null') {
-                        
+                    
                         const customer = new Customer({
                             images: imagesPaths,
                             userInfo: user.id,
-                            disease: null,
                             location: {
                                 latitude: req.body.latitude,
                                 longitude: req.body.longitude,
@@ -284,26 +285,6 @@ router.get('/customersPerMonth', async (req, res) => {
                         });
 
                         await customer.save();
-                    }
-                    else {
-                        let disease = await Diseases.findOne({ name: req.body.disease });
-                        if (!disease) {
-                            disease = new Diseases({ name: req.body.disease });
-                            disease = await disease.save();
-                        }
-
-                        const customer = new Customer({
-                            images: imagesPaths,
-                            userInfo: user.id,
-                            disease: disease.id,
-                            location: {
-                                latitude: req.body.latitude,
-                                longitude: req.body.longitude,
-                            },
-                        });
-
-                        await customer.save();
-                    }
 
                     return res.status(201).json({ message: 'Customer created successfully', userId: user.id, });
 
@@ -589,6 +570,8 @@ router.put('/change-password', async (req, res) => {
 
     // Validate input
 
+    console.log(userId)
+
     if (newPassword !== confirmPassword) {
         return res.status(400).json({ message: 'Passwords do not match' });
     }
@@ -603,7 +586,7 @@ router.put('/change-password', async (req, res) => {
         // Verify the old password
         const isMatch = await bcrypt.compare(oldPassword, user.passwordHash);
         if (!isMatch) {
-            return res.status(400).json({ message: 'Old password is incorrect' });
+            return res.status(400).json({ message: 'NOT_MATCH' });
         }
 
         // Hash the new password
@@ -777,12 +760,11 @@ router.put('/resetPassword', async (req, res) => {
 // Edit Profile Route
 router.put('/:id', uploadOptions.array('images'), async (req, res) => {
     const { id } = req.params;
-    const { name, contactNumber, street, barangay, city, businessDays, openingHour, closingHour } = req.body;
+    const { name, contactNumber, street, barangay, city } = req.body;
 
     try {
         // Check if the user is an Admin
-        const admin = await User.findById(id); // Assuming User is the main model for all users
-
+        const admin = await User.findById(id);
         if (admin && admin.role === 'Admin') {
             // Update Admin fields
             admin.name = name || admin.name;
@@ -790,56 +772,62 @@ router.put('/:id', uploadOptions.array('images'), async (req, res) => {
             admin.street = street || admin.street;
             admin.barangay = barangay || admin.barangay;
             admin.city = city || admin.city;
-
             await admin.save();
             return res.status(200).json({ message: 'Admin profile updated successfully', admin });
         }
 
-        // If not admin, check if the user is a Customer
+        // If not admin, check if the user is a Customer or Pharmacy
         const customer = await Customer.findOne({ userInfo: id }).populate('userInfo');
         const pharmacy = await Pharmacy.findOne({ userInfo: id }).populate('userInfo');
 
         if (!customer) {
-            // If customer is not found, check if it's a pharmacy update
             if (!pharmacy) return res.status(404).send('Entity not found');
 
-            // Update fields in the related User document (userInfo) for Pharmacy
+            // Update User and Pharmacy fields
             if (pharmacy.userInfo) {
                 const user = pharmacy.userInfo;
-
                 user.name = name || user.name;
                 user.contactNumber = contactNumber || user.contactNumber;
                 user.street = street || user.street;
                 user.barangay = barangay || user.barangay;
                 user.city = city || user.city;
-
                 await user.save();
             }
 
-            // Replace old images with new ones for Pharmacy
+            // Check if images were uploaded
             const imageUrls = req.files.map((file) => file.path);
-            pharmacy.images = imageUrls;
+            if (imageUrls.length > 0) {
+                pharmacy.images = imageUrls; // New images are set if any
+            } else if (req.body.existingImages) {
+                try {
+                    pharmacy.images = JSON.parse(req.body.existingImages); // Retain old images if no new ones
+                } catch (e) {
+                    console.error('Error parsing existing images:', e);
+                    return res.status(400).send('Invalid format for existing images');
+                }
+            }
+            
 
             await pharmacy.save();
             return res.status(200).json({ message: 'Pharmacy updated successfully', pharmacy });
         }
 
-        // Update fields in the related User document (userInfo) for Customer
         if (customer.userInfo) {
             const user = customer.userInfo;
-
             user.name = name || user.name;
             user.contactNumber = contactNumber || user.contactNumber;
             user.street = street || user.street;
             user.barangay = barangay || user.barangay;
             user.city = city || user.city;
-
             await user.save();
         }
 
-        // Replace old images with new ones for Customer
         const imageUrls = req.files.map((file) => file.path);
-        customer.images = imageUrls;
+        if (imageUrls.length > 0) {
+            customer.images = imageUrls; // New images
+        } else if (req.body.existingImages) {
+            customer.images = JSON.parse(req.body.existingImages); // Retain old images
+        }
 
         await customer.save();
 
@@ -849,6 +837,7 @@ router.put('/:id', uploadOptions.array('images'), async (req, res) => {
         res.status(500).send('Error updating entity');
     }
 });
+
 
   
 

@@ -4,8 +4,10 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const multer = require('multer');
-const nodemailer = require('nodemailer');
+const Tesseract = require("tesseract.js");
+
+const { uploadOptions } = require('../utils/cloudinary');
+ // Import Cloudinary upload options
 
   
 // Update customer's location
@@ -32,6 +34,40 @@ router.patch('/:id/update-location', async (req, res) => {
         res.status(500).json({ message: 'Error updating location.', error });
     }
 });
+
+router.post(
+    "/scan-prescription",
+    (req, res, next) => {
+      req.folder = "prescriptions"; // Set the desired Cloudinary folder dynamically
+      next();
+    },
+    uploadOptions.single("prescriptions"), // Handle single file upload
+    async (req, res) => {
+      try {
+        // The uploaded file information is in req.file
+        const uploadedImage = req.file;
+  
+        // Perform OCR using Tesseract.js on the uploaded image URL
+        const { data: { text } } = await Tesseract.recognize(uploadedImage.path, 'eng');
+  
+        // Log the extracted text
+        console.log("Extracted OCR Text:", text);
+        console.log("IMAGE:", uploadedImage);
+        // Respond with Cloudinary image URL and extracted OCR text
+        res.json({
+          message: "Image uploaded and processed successfully",
+          imageUrl: uploadedImage.path, // Cloudinary secure URL
+          publicId: uploadedImage.filename, // Public ID in Cloudinary
+          ocrText: text, // Extracted text from OCR
+        });
+      } catch (error) {
+        console.error("Error during image upload or OCR processing:", error);
+        res.status(500).json({ error: "Failed to process image" });
+      }
+    }
+  );
+  
+  
 
 
 module.exports = router;

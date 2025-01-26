@@ -1,11 +1,8 @@
 const express = require('express');
 const { Medicine } = require('../models/medicine');
 const { Pharmacy } = require('../models/pharmacy');
-const { User } = require('../models/user');
 const { MedicationCategory } = require('../models/medication-category');
-const { uploadOptions } = require('../utils/cloudinary');
 const router = express.Router();
-
 
 // medicine per category chart
 router.get('/medicinesPerCategory', async (req, res) => {
@@ -38,28 +35,27 @@ router.get('/medicinesPerCategory', async (req, res) => {
 });
 // Create Medicine
 router.post('/create', async (req, res) => {
-    const { name, description, stock, pharmacy, category } = req.body;
+    const { name, stock, pharmacy, category } = req.body;
     console.log(req.body)
 
     // Validate if pharmacy exists
     const pharmacyExists = await Pharmacy.findOne({ userInfo: pharmacy });
     if (!pharmacyExists) return res.status(400).send("Invalid Pharmacy ID");
 
-
-    console.log(pharmacyExists)
     // Find category by name, case-insensitive
     const categoryExists = await MedicationCategory.findOne({ name: category });
     if (!categoryExists) return res.status(400).send("Invalid Category name");
 
-    console.log(categoryExists)
     // Create new medicine document
     let medicine = new Medicine({
         name,
-        description,
+        timeStamps: new Date(),  // This will store the current date and time
         stock,
         pharmacy: pharmacyExists._id,
         category: categoryExists._id,
     });
+    
+    console.log(medicine)
 
     try {
         // Save the medicine document to the database
@@ -148,7 +144,8 @@ router.put('/update/:id', async (req, res) => {
         const updatedMedicine = await Medicine.findByIdAndUpdate(
             req.params.id,
             {
-                stock,  // Only updating stock
+                stock,
+                timeStamps: new Date(),  
             },
             { new: true }  // Return the updated document
         );
@@ -198,10 +195,6 @@ router.get('/available/:name', async (req, res) => {
 
     res.status(200).json(medicines);
 });
-
-
-
-
 
 
 module.exports = router;
