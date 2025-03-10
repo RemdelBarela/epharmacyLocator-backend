@@ -21,16 +21,29 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    address: {
+        type: String,
+        required: function () {
+            return this.role === "Customer"; 
+        }
+    },
     street: {
         type: String,
+        required: function () {
+            return this.role === "PharmacyOwner"; 
+        }
     },
     barangay: {
         type: String,
-        required: true
+        required: function () {
+            return this.role === "PharmacyOwner"; 
+        }
     },
     city: {
         type: String,
-        required: true
+        required: function () {
+            return this.role === "PharmacyOwner"; 
+        }
     },
     role: {
         type: String,
@@ -43,7 +56,7 @@ const userSchema = new mongoose.Schema({
     createdAt: {
         type: Date,
         default: Date.now,
-      },
+    },
 });
 
 userSchema.virtual('id').get(function () {

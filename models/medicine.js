@@ -1,29 +1,35 @@
-const mongoose = require('mongoose'); 
+const mongoose = require('mongoose');
 
 const medicineSchema = mongoose.Schema({
-    name: {
+    brandName: {
         type: String,
         required: true,
     },
-    stock: {
-        type: Number, 
-        required: true,
-    },
-    timeStamps:
-    {
+    genericName: {
         type: String,
-        required: true
-    },
-    pharmacy: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Pharmacy',
         required: true,
     },
-    category: {
+    dosageStrength: {
+        type: String,
+        required: true,
+    },
+    dosageForm: {
+        type: String,
+        required: true,
+    },
+    classification: {
+        type: String,
+        required: true,
+    },
+    category: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'MedicationCategory',
         required: true,
-    },
+    }],
+    description: [{
+        type: String,
+        required: true,
+    }]
 });
 
 medicineSchema.virtual('id').get(function () {

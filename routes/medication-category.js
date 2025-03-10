@@ -1,24 +1,15 @@
 const express = require("express");
 const { MedicationCategory } = require("../models/medication-category");
+const { Medicine } = require("../models/medicine");
+const { PharmacyStock } = require("../models/pharmacyStock");
+
 const { uploadOptions } = require("../utils/cloudinary");
 const router = express.Router();
 
-// Create a medication category with image upload
-router.post("/create", (req, res, next) => {
-    req.folder = "medicationcategory"; // Set the folder name
-    next();
-}, uploadOptions.array("images", 10), async (req, res) => {
-    const files = req.files;
-    let imagePaths = [];
-
-    if (files) {
-        imagePaths = files.map((file) => file.path); // Cloudinary URLs
-    }
+router.post("/create", async (req, res) => {
 
     let medicationCategory = new MedicationCategory({
         name: req.body.name,
-        description: req.body.description,
-        images: imagePaths,
     });
 
     try {
@@ -28,7 +19,6 @@ router.post("/create", (req, res, next) => {
         res.status(400).send("The medication category cannot be created!");
     }
 });
-
 
 
 router.get('/', async (req, res) => {
@@ -52,23 +42,12 @@ router.get('/:id', async (req, res) => {
 });
 
 
-router.put("/update/:id", (req, res, next) => {
-    req.folder = "medicationcategory"; // Set the folder name
-    next();
-}, uploadOptions.array("images", 10), async (req, res) => {
-    const files = req.files;
-    let imagePaths = [];
-
-    if (files) {
-        imagePaths = files.map((file) => file.path); // Cloudinary URLs
-    }
-
+router.put("/update/:id", async (req, res) => {
+   
     const updatedCategory = await MedicationCategory.findByIdAndUpdate(
         req.params.id,
         {
             name: req.body.name,
-            description: req.body.description,
-            images: imagePaths.length ? imagePaths : undefined,
         },
         { new: true }
     );
@@ -83,17 +62,30 @@ router.put("/update/:id", (req, res, next) => {
 
 
 router.delete('/delete/:id', async (req, res) => {
-    MedicationCategory.findByIdAndRemove(req.params.id)
-        .then((medicationCategory) => {
-            if (medicationCategory) {
-                return res.status(200).json({ success: true, message: 'The medication category is deleted!' });
-            } else {
-                return res.status(404).json({ success: false, message: 'Medication category not found!' });
-            }
-        })
-        .catch((err) => {
-            return res.status(500).json({ success: false, error: err });
-        });
+    try {
+        const categoryId = req.params.id;
+
+        const medicationCategory = await MedicationCategory.findById(categoryId);
+        if (!medicationCategory) {
+            return res.status(404).json({ success: false, message: 'Medication category not found!' });
+        }
+
+        const medicines = await Medicine.find({ category: categoryId });
+
+        const medicineIds = medicines.map(med => med._id);
+
+        await PharmacyStock.deleteMany({ medicine: { $in: medicineIds } });
+
+        await Medicine.deleteMany({ category: categoryId });
+
+        await MedicationCategory.findByIdAndRemove(categoryId);
+
+        return res.status(200).json({ success: true, message: 'Medication category, related medicines, and pharmacy stock deleted successfully!' });
+
+    } catch (error) {
+        console.error('Error deleting medication category:', error);
+        return res.status(500).json({ success: false, error: error.message });
+    }
 });
 
 module.exports = router;

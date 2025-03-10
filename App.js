@@ -6,6 +6,8 @@ const cors = require("cors");
 const authJwt = require('./helpers/jwt');
 const errorHandler = require('./helpers/error-handler');
 require("dotenv/config");
+require("./utils/cronJobs");
+
 
 
 app.use(cors());
@@ -21,28 +23,27 @@ app.use("/public", express.static(__dirname + "/public"));
 app.use(authJwt());
 app.use(errorHandler);
 
-
-
-
 //Routes
 const usersRoutes = require("./routes/users");
-const diseasesRoutes = require("./routes/diseases");
 const medicationcategoryRoutes = require("./routes/medication-category");
 const medicineRoutes = require("./routes/medicine");
 const pharmacyRoutes = require("./routes/pharmacy");
 const barangayRoutes = require("./routes/barangay");
 const customerRoutes = require("./routes/customers");
+const feedbackRoutes = require("./routes/feedback");
+
 
 const api = process.env.API_URL;
 
 
 app.use(`${api}/users`, usersRoutes);
 app.use(`${api}/customers`, customerRoutes);
-app.use(`${api}/diseases`, diseasesRoutes);
 app.use(`${api}/medication-category`, medicationcategoryRoutes);
 app.use(`${api}/medicine`, medicineRoutes);
 app.use(`${api}/pharmacies`, pharmacyRoutes);
 app.use(`${api}/barangays`, barangayRoutes);
+app.use(`${api}/feedbacks`, feedbackRoutes);
+
 
 
 //Database

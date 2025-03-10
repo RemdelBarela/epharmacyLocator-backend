@@ -4,11 +4,7 @@ const medicationCategorySchema = mongoose.Schema({
     name: {
         type: String,
         required: true,
-    },
-    description: {
-        type: String,
-        required: true,
-    },
+    }
 });
 
 medicationCategorySchema.virtual('id').get(function () {

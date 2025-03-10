@@ -4,11 +4,6 @@ const customerSchema = new mongoose.Schema({
     images: [{
         type: String
     }],
-    disease: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Diseases',
-        default: null,
-    },
     userInfo: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
@@ -20,7 +15,8 @@ const customerSchema = new mongoose.Schema({
         longitude: {
             type: String,
         },
-    }
+    },
+    consentGiven: { type: Boolean, default: null } 
 });
 
 customerSchema.virtual('id').get(function () {

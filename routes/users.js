@@ -1,7 +1,6 @@
 const { User } = require('../models/user');
 const { Pharmacy } = require('../models/pharmacy');
 const { Customer } = require('../models/customer');
-const { Diseases } = require('../models/disease');
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
@@ -39,7 +38,7 @@ router.get('/', async (req, res) => {
         const usersWithDetails = await Promise.all(
             users.map(async (user) => {
                 if (user.role === 'Customer') {
-                    const customer = await Customer.findOne({ userInfo: user.id }).populate('disease', 'name');
+                    const customer = await Customer.findOne({ userInfo: user.id });
                     return { ...user._doc, customerDetails: customer };
                 } else if (user.role === 'PharmacyOwner') {
                     const pharmacy = await Pharmacy.findOne({ userInfo: user.id });
@@ -55,6 +54,66 @@ router.get('/', async (req, res) => {
         res.status(500).send('Error fetching users');
     }
 });
+
+router.get('/admins', async (req, res) => {
+    try {
+        const fetchAdmins = await User.find({ role: 'Admin' }).lean();
+
+        if (!fetchAdmins.length) { // ✅ Check if the array is empty
+            return res.status(404).json({ success: false, message: 'No admins found' });
+        }
+
+        res.status(200).json(fetchAdmins);
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+router.put('/admins/updateRole/:id', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        // Find user by ID
+        const user = await User.findById(id);
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        // Count the total number of Admins
+        const adminCount = await User.countDocuments({ role: 'Admin' });
+
+        // If there is only one Admin and this Admin is being changed, prevent the update
+        if (adminCount === 1 && user.role === 'Admin') {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'MIN' 
+            });
+        }
+
+        // Toggle role between 'Admin' and 'Customer'
+        user.role = user.role === 'Admin' ? 'Customer' : 'Admin';
+        
+        await user.save();
+
+        return res.status(200).json({ 
+            success: true, 
+            message: `User role updated to ${user.role}`, 
+            user 
+        });
+
+    } catch (error) {
+        console.error('Error updating user role:', error);
+        return res.status(500).json({ 
+            success: false, 
+            message: 'Error updating user role', 
+            error: error.message 
+        });
+    }
+});
+
+
+
 
 // pharmacies per month na chart
 router.get('/pharmaciesPerMonth', async (req, res) => {
@@ -250,12 +309,18 @@ router.get('/customersPerMonth', async (req, res) => {
                 isAdmin: req.body.isAdmin,
                 name: req.body.name,
                 contactNumber: req.body.contactNumber,
-                street: req.body.street,
-                barangay: req.body.barangay,
-                city: req.body.city,
                 role: req.body.role,
                 verified: false,
             });
+
+            // Assign address fields based on role
+            if (req.body.role === 'Customer') {
+                user.address = req.body.address;
+            } else if (req.body.role === 'PharmacyOwner') {
+                user.street = req.body.street;
+                user.barangay = req.body.barangay;
+                user.city = req.body.city;
+            }
 
             user = await user.save();
             if (!user) {
@@ -547,7 +612,7 @@ router.get('/:id', async (req, res) => {
 
         // Fetch additional details based on the user's role
         if (user.role === 'Customer') { 
-            const customer = await Customer.findOne({ userInfo: userId }).populate('disease', 'name');
+            const customer = await Customer.findOne({ userInfo: userId });
             if (customer) {
                 userDetails.customerDetails = customer;
             }
@@ -763,7 +828,7 @@ router.put('/resetPassword', async (req, res) => {
 // Edit Profile Route
 router.put('/:id', uploadOptions.array('images'), async (req, res) => {
     const { id } = req.params;
-    const { name, contactNumber, street, barangay, city } = req.body;
+    const { name, contactNumber, street, barangay, city, address, businessDays, openingHour, closingHour } = req.body;
 
     try {
         // Check if the user is an Admin
@@ -810,18 +875,26 @@ router.put('/:id', uploadOptions.array('images'), async (req, res) => {
                 }
             }
             
+             // **Update business hours and days**
+             pharmacy.businessDays = businessDays || pharmacy.businessDays;
+             pharmacy.openingHour = openingHour || pharmacy.openingHour;
+             pharmacy.closingHour = closingHour || pharmacy.closingHour;
 
             await pharmacy.save();
             return res.status(200).json({ message: 'Pharmacy updated successfully', pharmacy });
         }
 
+        // Update Customer profile (Only address, name, and contactNumber)
         if (customer.userInfo) {
             const user = customer.userInfo;
             user.name = name || user.name;
             user.contactNumber = contactNumber || user.contactNumber;
-            user.street = street || user.street;
-            user.barangay = barangay || user.barangay;
-            user.city = city || user.city;
+
+            // Only update address field for customers
+            if (address) {
+                user.address = address;
+            }
+
             await user.save();
         }
 
@@ -840,6 +913,9 @@ router.put('/:id', uploadOptions.array('images'), async (req, res) => {
         res.status(500).send('Error updating entity');
     }
 });
+
+
+
 
 
   
