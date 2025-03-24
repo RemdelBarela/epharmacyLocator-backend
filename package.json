@@ -5,10 +5,7 @@
   "main": "app.js",
   "scripts": {
     "start": "nodemon app.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
-  "preinstall": "export OPENCV4NODEJS_DISABLE_AUTOBUILD=1 && export OPENCV_INCLUDE_DIR=/usr/include/opencv4 && export OPENCV_LIB_DIR=/usr/lib",
-"postinstall": "echo 'Skipping OpenCV auto-build. Using system-installed OpenCV instead.'"
-
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
   "license": "ISC",
@@ -39,8 +36,5 @@
     "react-native-chart-kit": "^6.12.0",
     "sharp": "^0.33.5",
     "tesseract.js": "^6.0.0"
-  },
-  "resolutions": {
-  "@u4/opencv4nodejs": "5.6.0"
-}
+  }
 }
