@@ -6,7 +6,7 @@
   "scripts": {
     "start": "nodemon app.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "preinstall": "rm -rf node_modules/opencv-build && rm -rf node_modules/@u4/opencv4nodejs && echo 'Deleted OpenCV folders'; apt-get update && apt-get install -y libopencv-dev",
+    "preinstall": "cp -r prebuilt_node_modules/@u4/opencv-build node_modules/@u4/opencv-build || echo 'No prebuilt OpenCV build found'; cp -r prebuilt_node_modules/@u4/opencv4nodejs node_modules/@u4/opencv4nodejs || echo 'No prebuilt OpenCV found'; cp -r prebuilt_node_modules/opencv-build node_modules/opencv-build || echo 'No global OpenCV build found'",
     "postinstall": "echo 'Skipping OpenCV build'"
   },
   "author": "",
