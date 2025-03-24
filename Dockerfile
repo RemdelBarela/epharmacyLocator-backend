@@ -1,30 +1,41 @@
-# Use official Node.js image
+# Use a base image
 FROM node:18
 
-# Install OpenCV dependencies
-RUN apt-get update && apt-get install -y \
-    libopencv-dev \
-    build-essential \
-    cmake \
-    python3 \
-    python3-pip \
-    pkg-config
-
-# Set working directory
+# Set the working directory inside the container
 WORKDIR /app
 
-# Copy package.json and package-lock.json first for caching
-COPY package.json package-lock.json ./
+# Install system dependencies for OpenCV
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    build-essential \
+    cmake \
+    libgtk2.0-dev \
+    libavcodec-dev \
+    libavformat-dev \
+    libswscale-dev \
+    libtbb2 \
+    libtbb-dev \
+    libjpeg-dev \
+    libpng-dev \
+    libtiff-dev \
+    libdc1394-22-dev \
+    libopencv-dev
 
-# Ensure correct Python version is used for node-gyp
-ENV PYTHON python3
+# Set the environment variable to disable auto-build of OpenCV
+ENV OPENCV4NODEJS_DISABLE_AUTOBUILD=1
+
+# Copy package.json and package-lock.json first (for better caching)
+COPY package*.json ./
 
 # Install dependencies
 RUN npm install --unsafe-perm --force
 
-# Copy the entire project into the container
+# Copy the rest of the application files
 COPY . .
 
-# Expose port and start server
+# Expose the application port
 EXPOSE 3000
-CMD ["npm", "start"]
+
+# Start the application
+CMD ["node", "server.js"]
