@@ -240,7 +240,7 @@ router.get("/mostScannedMedicines", async (req, res) => {
         },
       },
       { $sort: { count: -1 } }, // Sort by highest count
-      { $limit: 5 }, // Limit to top 10 medicines
+      { $limit: 2 }, // Limit to top 10 medicines
     ]);
 
     if (!medicineCounts || medicineCounts.length === 0) {

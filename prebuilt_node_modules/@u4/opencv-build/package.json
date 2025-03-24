@@ -1,0 +1,56 @@
+{
+  "name": "@u4/opencv-build",
+  "version": "1.1.1",
+  "description": "Script to auto build recent OpenCV + contrib via npm 2024 Edition",
+  "keywords": [
+    "opencv",
+    "build",
+    "opencv4nodejs"
+  ],
+  "author": "Uriel Chemouni <uchemouni@gmail.com> (https://uriel.deno.dev/)",
+  "homepage": "https://github.com/UrielCh/npm-opencv-build",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/UrielCh/npm-opencv-build.git"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/UrielCh/npm-opencv-build/issues"
+  },
+  "main": "./script/mod.js",
+  "module": "./esm/mod.js",
+  "exports": {
+    ".": {
+      "import": "./esm/mod.js",
+      "require": "./script/mod.js"
+    }
+  },
+  "bin": {
+    "opencv-build-npm": "esm/main.js"
+  },
+  "funding": "https://github.com/UrielCh/npm-opencv-build?sponsor=1",
+  "contributors": [
+    "Uriel Chemouni <uchemouni@gmail.com> (https://uriel.ovh/)",
+    "justadudewhohacks (https://github.com/justadudewhohacks)"
+  ],
+  "engine-strict": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "glob": "*",
+    "rimraf": "*",
+    "@deno/shim-deno": "~0.19.2",
+    "@denodnt/logger": "^1.1.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.4.0",
+    "picocolors": "^1.0.1"
+  },
+  "_generatedBy": "dnt@dev",
+  "scripts": {
+    "test": "node test_runner.js",
+    "checkExports": "npx @arethetypeswrong/cli $(npm pack)",
+    "install_macm1": "node script/main.js --version 4.10.0 --flag=\"-DCMAKE_SYSTEM_PROCESSOR=arm64 -DCMAKE_OSX_ARCHITECTURES=arm64\"",
+    "install_4_9_0_cuda_30XX": "npm run build && cross-env OPENCV4NODEJS_DISABLE_AUTOBUILD= node bin/main.js --keepsource --version 4.10.0 --cuda --cudaArch=8.6"
+  }
+}
