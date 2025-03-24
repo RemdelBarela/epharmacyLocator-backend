@@ -2,7 +2,6 @@
 
 # dependencies
 node_modules/
-!prebuilt_node_modules/opencv4nodejs
 
 # Expo
 .expo/
