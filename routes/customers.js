@@ -9,8 +9,6 @@ const Tesseract = require("tesseract.js");
 const Jimp = require("jimp").default;
 const tf = require("@tensorflow/tfjs-node");
 const fs = require("fs").promises;
-const cv = require("@u4/opencv4nodejs"); // OpenCV
-const sharp = require("sharp");
 const axios = require("axios");
 const { uploadOptions } = require('../utils/cloudinary');
 const cloudinary = require("cloudinary").v2;
@@ -56,50 +54,44 @@ router.post(
       const response = await axios.get(imageUrl, { responseType: "arraybuffer" });
       const imageBuffer = Buffer.from(response.data);
 
-      // =========================== 🟢 OPENCV STROKE ENHANCEMENT 🟢 ===========================
+      // **STEP 2: CONVERT IMAGE TO TENSOR**
+      let imageTensor = tf.node.decodeImage(imageBuffer, 3);
 
-      // Convert Buffer to OpenCV Mat
-      let imgMat = cv.imdecode(imageBuffer);
-
-      // Convert to Grayscale
-      imgMat = imgMat.bgrToGray();
-
-      // Step 1: Invert the image (Black → White, White → Black)
-      imgMat = imgMat.bitwiseNot();
-
-      // Step 2: Apply Dilation
-      const kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, new cv.Size(2, 2));
-      imgMat = imgMat.dilate(kernel, new cv.Point(-1, -1), 1); // Increase iterations for more thickness
-
-      // Step 3: Invert the image back to original colors
-      imgMat = imgMat.bitwiseNot();
-
-      // Convert Back to Buffer for TensorFlow Processing
-      const processedBufferOpenCV = cv.imencode(".jpg", imgMat);
-
-      // =========================== 🔵 TENSORFLOW PREPROCESSING 🔵 ===========================
-      
-      // Convert OpenCV-processed image to Tensor
-      let imageTensor = tf.node.decodeImage(processedBufferOpenCV, 3);
-
-      // Convert to Grayscale for OCR Consistency
+      // **STEP 3: CONVERT TO GRAYSCALE**
       imageTensor = imageTensor.mean(2).expandDims(-1);
 
-      // Normalize Pixel Values (0 to 1)
+      // **STEP 4: NORMALIZE PIXEL VALUES (0 TO 1)**
       imageTensor = imageTensor.div(255.0);
 
-      // Apply Thresholding for Better OCR
-      const threshold = 0.5; // Adjusted threshold for better contrast
+      // **STEP 5: APPLY THRESHOLDING**
+      const threshold = 0.4;
       let binarizedTensor = imageTensor.greater(tf.scalar(threshold)).toFloat();
 
-      // Restore Pixel Values (0-255)
+     // **STEP 6: INVERT COLORS (Make text white, background black)**
+      binarizedTensor = tf.sub(1, binarizedTensor);
+
+      // **STEP 7: DILATE TEXT STROKES (Thicken text)**
+      const kernelSize = 3; // Adjust size for thickness
+      const kernel = tf.ones([kernelSize, kernelSize, 1, 1]);
+
+      binarizedTensor = tf.conv2d(
+        binarizedTensor.expandDims(0), 
+        kernel, 
+        1, 
+        "same"
+      ).squeeze(0);
+
+      // **STEP 8: INVERT COLORS BACK (Restore original text color)**
+      binarizedTensor = tf.sub(1, binarizedTensor);
+
+      // **STEP 9: RESTORE PIXEL VALUES (0-255 RANGE)**
       binarizedTensor = binarizedTensor.mul(255).cast("int32");
 
-      // Convert Back to Image Format
+
+      // **STEP 10: CONVERT BACK TO IMAGE FORMAT**
       const processedBuffer = await tf.node.encodeJpeg(binarizedTensor);
 
-      // =========================== 🔴 UPLOAD PROCESSED IMAGE TO CLOUDINARY 🔴 ===========================
-
+      // **STEP 11: UPLOAD PROCESSED IMAGE TO CLOUDINARY**
       const uploadedResponse = await cloudinary.uploader.upload_stream(
         { folder: "processed_prescriptions" },
         async (error, result) => {
@@ -108,14 +100,14 @@ router.post(
             return res.status(500).json({ error: "Failed to upload processed image" });
           }
 
-          // =========================== 🟠 OCR USING TESSERACT 🟠 ===========================
+          // **STEP 10: OCR USING TESSERACT**
           const { data: { text } } = await Tesseract.recognize(processedBuffer, "epharmacy_finetunedver2", { psm: 6 });
           console.log("Extracted OCR Text:", text);
 
           res.json({
             message: "Image uploaded, processed, and saved successfully",
             originalImageUrl: imageUrl,
-            processedImageUrl: result.secure_url, // Cloudinary URL of processed image
+            processedImageUrl: result.secure_url,
             ocrText: text.trim() || "No text detected",
           });
         }
@@ -180,34 +172,6 @@ router.get("/:customerId/prescriptions", async (req, res) => {
   }
 });
 
-// router.get("/mostScannedMedicines", async (req, res) => {
-//   try {
-//     const medicineCounts = await Prescription.aggregate([
-//       { $unwind: "$matchedMedicines" }, // Split matchedMedicines array
-//       {
-//         $group: {
-//           _id: "$matchedMedicines",
-//           count: { $sum: 1 }, // Count occurrences
-//         },
-//       },
-//       { $sort: { count: -1 } }, // Sort by highest count
-//       { $limit: 10 }, // Limit to top 10 medicines
-//     ]);
-
-//     if (!medicineCounts || medicineCounts.length === 0) {
-//       return res.status(404).json({ message: "No scanned medicines found." });
-//     }
-
-//     res.status(200).json({
-//       success: true,
-//       mostScannedMedicines: medicineCounts,
-//     });
-//   } catch (error) {
-//     console.error("Error fetching most scanned medicines:", error);
-//     res.status(500).json({ message: "An error occurred while fetching data." });
-//   }
-// });
-
 router.get("/mostScannedMedicines", async (req, res) => {
   try {
     const medicineCounts = await Prescription.aggregate([
@@ -240,7 +204,7 @@ router.get("/mostScannedMedicines", async (req, res) => {
         },
       },
       { $sort: { count: -1 } }, // Sort by highest count
-      { $limit: 2 }, // Limit to top 10 medicines
+      { $limit: 5 }, // Limit to top 10 medicines
     ]);
 
     if (!medicineCounts || medicineCounts.length === 0) {
