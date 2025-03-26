@@ -7,6 +7,43 @@ const mongoose = require('mongoose');
 
 const router = express.Router();
 
+router.get('/pharmacy-rating-distribution', async (req, res) => {
+    try {
+        // Aggregate to calculate average ratings per pharmacy
+        const ratingData = await Feedback.aggregate([
+            {
+                $group: {
+                    _id: "$pharmacy",
+                    averageRating: { $avg: "$rating" }
+                }
+            }
+        ]);
+
+        // Define rating ranges
+        const ratingRanges = {
+            "0-1": 0,
+            "1.01-2": 0,
+            "2.01-3": 0,
+            "3.01-4": 0,
+            "4.01-5": 0
+        };
+
+        // Categorize pharmacies based on average rating
+        ratingData.forEach(({ averageRating }) => {
+            if (averageRating >= 0 && averageRating <= 1) ratingRanges["0-1"]++;
+            else if (averageRating > 1 && averageRating <= 2) ratingRanges["1.01-2"]++;
+            else if (averageRating > 2 && averageRating <= 3) ratingRanges["2.01-3"]++;
+            else if (averageRating > 3 && averageRating <= 4) ratingRanges["3.01-4"]++;
+            else if (averageRating > 4 && averageRating <= 5) ratingRanges["4.01-5"]++;
+        });
+
+        res.status(200).json(ratingRanges);
+    } catch (error) {
+        console.error("Error fetching pharmacy rating distribution:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 router.post("/create", async (req, res) => {
     const { customer, rating, comment, pharmacy, name } = req.body;
     console.log("Received request body:", req.body);
@@ -166,6 +203,8 @@ router.get('/chart/:pharmacyId', async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 });
+
+
 
 
 module.exports = router;
